@@ -136,15 +136,14 @@ def browse_file():
 def select_toy_dataset():
     global use_toy_dataset
     use_toy_dataset = True
-    regression_button.pack(pady=5)
-    classification_button.pack(pady=5)
+    toy_dataset_type_var.set(False)
+    toy_dataset_type_frame.pack(side=tk.LEFT)
     browse_button.config(text="Back", command=go_back)
 
 def go_back():
     global use_toy_dataset
     use_toy_dataset = False
-    regression_button.pack_forget()
-    classification_button.pack_forget()
+    toy_dataset_type_frame.pack_forget()
     browse_button.config(text="Browse", command=browse_file)
     file_label.config(text="Select CSV file:")
     file_entry.delete(0, tk.END)
@@ -259,18 +258,18 @@ def train_model(data):
     model_class = model_selector.get_model(model_name)
     parameters = model_selector.get_model_parameters(model_name)
 
-    if model_name == "XGBRegressor":
-        dtrain = DMatrix(X_train, label=y_train, feature_names=list(X_train.columns))
-        dtest = DMatrix(X_test, label=y_test, feature_names=list(X_test.columns))
-        model = model_class(**parameters)
-        model.fit(dtrain)
-        y_pred = model.predict(dtest)
-        accuracy = model.score(dtest)
-    else:
-        model = model_class(**parameters)
-        model.fit(X_train, y_train)
-        y_pred = model.predict(X_test)
-        accuracy = model.score(X_test, y_test)
+    # if model_name == "XGBRegressor":
+        # dtrain = DMatrix(X_train, label=y_train, feature_names=list(X_train.columns))
+        # dtest = DMatrix(X_test, label=y_test, feature_names=list(X_test.columns))
+        # model = model_class(**parameters)
+        # model.fit(dtrain)
+        # y_pred = model.predict(dtest)
+        # accuracy = model.score(dtest)
+    # else:
+    model = model_class(**parameters)
+    model.fit(X_train, y_train)
+    y_pred = model.predict(X_test)
+    accuracy = model.score(X_test, y_test)
 
     print('Data shapes: ', X_train.shape, y_train.shape)
     print('Target data type: ', y_train.dtype)
@@ -279,7 +278,7 @@ def train_model(data):
     plt.scatter(y_test, y_pred)
     plt.xlabel("True Values")
     plt.ylabel("Predictions")
-    plt.title(f"{model_name} - Predictions vs True Values")
+    plt.title(f"{model_name} - Predictions vs True Values - Accuracy: {accuracy}")
     plt.show()
 
     result_label.config(text=f"Model: {model_name}\nAccuracy: {accuracy:.2f}")
@@ -303,12 +302,20 @@ file_entry.pack()
 browse_button = tk.Button(window, text="Browse", command=browse_file)
 browse_button.pack(pady=10)
 
-toy_dataset_button = tk.Button(window, text="Toy Dataset", command=select_toy_dataset)
-toy_dataset_button.pack(pady=10)
+toy_dataset_frame = tk.Frame(window)
+toy_dataset_frame.pack(pady=10)
+
+toy_dataset_button = tk.Button(toy_dataset_frame, text="Toy Dataset", command=select_toy_dataset)
+toy_dataset_button.pack(side=tk.LEFT, padx=5)
+
+toy_dataset_type_frame = tk.Frame(toy_dataset_frame)
+toy_dataset_type_frame.pack(side=tk.LEFT)
 
 toy_dataset_type_var = tk.StringVar()
-regression_button = tk.Radiobutton(window, text="Regression", variable=toy_dataset_type_var, value="regression", command=update_file_entry)
-classification_button = tk.Radiobutton(window, text="Classification", variable=toy_dataset_type_var, value="classification", command=update_file_entry)
+regression_button = tk.Radiobutton(toy_dataset_type_frame, text="Regression", variable=toy_dataset_type_var, value="regression", command=update_file_entry)
+regression_button.pack(side=tk.LEFT, padx=5)
+classification_button = tk.Radiobutton(toy_dataset_type_frame, text="Classification", variable=toy_dataset_type_var, value="classification", command=update_file_entry)
+classification_button.pack(side=tk.LEFT, padx=5)
 
 target_label = tk.Label(window, text="Target column:")
 target_label.pack(pady=10)
@@ -327,7 +334,7 @@ model_selector = ModelSelector()
 model_dropdown = tk.OptionMenu(window, model_var, *list(model_selector.regression_models.keys()) + list(model_selector.classification_models.keys()))
 model_dropdown.pack()
 
-select_model_button = tk.Button(window, text="Select Model", command=select_model)
+select_model_button = tk.Button(window, text="Select Model Parameters", command=select_model)
 select_model_button.pack(pady=10)
 
 model_entry = tk.Entry(window, width=30)
