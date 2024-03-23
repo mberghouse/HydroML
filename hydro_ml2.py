@@ -4,20 +4,40 @@ import numpy as np
 import tkinter as tk
 from tkinter import filedialog, ttk
 import pandas as pd
+
 from sklearn.model_selection import train_test_split
 from sklearn.impute import SimpleImputer
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
-from sklearn.linear_model import LogisticRegression, LinearRegression
+from sklearn.linear_model import LogisticRegression, LinearRegression, Ridge, RidgeCV, Lasso, LassoLars, BayesianRidge, TweedieRegressor, SGDRegressor, SGDClassifier, Perceptron, TheilSenRegressor, HuberRegressor, ElasticNet, OrthogonalMatchingPursuit
+from sklearn.cluster import KMeans, AgglomerativeClustering, Birch, DBSCAN, BisectingKMeans, MiniBatchKMeans, SpectralClustering, SpectralBiClustering
+from sklearn.cluster import affinity_propagation, cluster_optics_dbscan, cluster_optics_xi, computer_optics_graph, dbscan, estimate_bandwidth, k_means, kmeans_plusplus, mean_shift, spectral_clustering, ward_tree
+from sklearn.compose import ColumnTransformer
+from sklearn.covariance import EmpiricalCovariance, GraphicalLasso, GraphicalLassoCV, MinCovDet, OAS, empirical_covariance, graphical_lasso, ledoit_wolf, oas
+from sklearn.cross_decomposition import CCA, PLSCanonical, PLSRegression, PLSSVD
 from sklearn.svm import SVC, SVR
 from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
 from xgboost import XGBRegressor as xgbr
 from xgboost import DMatrix
 import re
-from sklearn.datasets import load_iris, load_diabetes
-
+from sklearn.datasets import load_iris, load_diabetes, load_breast_cancer, load_digits, load_files, load_linnerud, load_sample_images, load_wine, fetch_california_housing, fetch_covtype, fetch_kddcup99, fetch_rcv1, fetch_olivetti_faces
+from sklearn.metrics import accuracy_score, auc, confusion_matrix, f1_score, jaccard_score, roc_auc_score,average_precision_score
+from sklearn.metrics import max_error, explained_variance_score, mean_absolute_error, mean_squared_error, r2_score, mean_absolute_percentage_error, ConfusionMatrixDisplay,
 class ModelSelector:
     def __init__(self):
         self.regression_models = {
+        "Ridge": Ridge, 
+        "RidgeCV": RidgeCV, 
+        "Lasso": Lasso, 
+        "LassoLars": LassoLars,
+        "BayesianRidge": BayesianRidge, 
+        "TweedieRegressor": TweedieRegressor, 
+        "SGDRegressor": SGDRegressor, 
+        "SGDClassifier": SGDClassifier, 
+        "Perceptron": Perceptron, 
+        "TheilSenRegressor": TheilSenRegressor,
+        "HuberRegressor": HuberRegressor,
+        "ElasticNet": ElasticNet, 
+        "OrthogonalMatchingPursuit": OrthogonalMatchingPursuit,
             "RandomForestRegressor": RandomForestRegressor,
             "LinearRegression": LinearRegression,
             "SVR": SVR,
@@ -31,13 +51,175 @@ class ModelSelector:
             "KNeighborsClassifier": KNeighborsClassifier
         }
         self.model_parameters = {
-            "RandomForestRegressor": {
-                "n_estimators": 100,
-                "max_depth": None,
-                "min_samples_split": 2,
-                "min_samples_leaf": 1
-            },
-            "LinearRegression": {},
+        "RandomForestRegressor": {
+        "n_estimators": 100,
+        "max_depth": None,
+        "min_samples_split": 2,
+        "min_samples_leaf": 1
+        },
+        "Ridge": {
+            "alpha": 1.0,
+            "fit_intercept": True,
+            "copy_X": True,
+            "max_iter": None,
+            "tol": 0.0001,
+            "solver": "auto",
+            "random_state": None
+        },
+        "RidgeCV": {
+            "alphas": (0.1, 1.0, 10.0),
+            "fit_intercept": True,
+            "scoring": None,
+            "cv": None,
+            "gcv_mode": None,
+            "store_cv_values": False
+        },
+        "Lasso": {
+            "alpha": 1.0,
+            "fit_intercept": True,
+            "precompute": False,
+            "copy_X": True,
+            "max_iter": 1000,
+            "tol": 0.0001,
+            "warm_start": False,
+            "positive": False,
+            "random_state": None,
+            "selection": "cyclic"
+        },
+        "LassoLars": {
+            "alpha": 1.0,
+            "fit_intercept": True,
+            "verbose": False,
+            "precompute": "auto",
+            "max_iter": 500,
+            "eps": 2.220446049250313e-16,
+            "copy_X": True,
+            "fit_path": True,
+            "positive": False,
+            "jitter": None,
+            "random_state": None
+        },
+        "BayesianRidge": {
+            "n_iter": 300,
+            "tol": 0.001,
+            "alpha_1": 1e-06,
+            "alpha_2": 1e-06,
+            "lambda_1": 1e-06,
+            "lambda_2": 1e-06,
+            "compute_score": False,
+            "fit_intercept": True,
+            "copy_X": True,
+            "verbose": False
+        },
+        "TweedieRegressor": {
+            "power": 0.0,
+            "alpha": 1.0,
+            "fit_intercept": True,
+            "link": "auto",
+            "max_iter": 100,
+            "tol": 0.0001,
+            "warm_start": False,
+            "verbose": False
+        },
+        "SGDRegressor": {
+            "loss": "squared_loss",
+            "penalty": "l2",
+            "alpha": 0.0001,
+            "l1_ratio": 0.15,
+            "fit_intercept": True,
+            "max_iter": 1000,
+            "tol": 0.001,
+            "shuffle": True,
+            "verbose": 0,
+            "epsilon": 0.1,
+            "random_state": None,
+            "learning_rate": "invscaling",
+            "eta0": 0.01,
+            "power_t": 0.25,
+            "early_stopping": False,
+            "validation_fraction": 0.1,
+            "n_iter_no_change": 5,
+            "warm_start": False,
+            "average": False
+        },
+        "SGDClassifier": {
+            "loss": "hinge",
+            "penalty": "l2",
+            "alpha": 0.0001,
+            "l1_ratio": 0.15,
+            "fit_intercept": True,
+            "max_iter": 1000,
+            "tol": 0.001,
+            "shuffle": True,
+            "verbose": 0,
+            "epsilon": 0.1,
+            "n_jobs": None,
+            "random_state": None,
+            "learning_rate": "optimal",
+            "eta0": 0.0,
+            "power_t": 0.5,
+            "early_stopping": False,
+            "validation_fraction": 0.1,
+            "n_iter_no_change": 5,
+            "class_weight": None,
+            "warm_start": False,
+            "average": False
+        },
+        "Perceptron": {
+            "penalty": None,
+            "alpha": 0.0001,
+            "fit_intercept": True,
+            "max_iter": 1000,
+            "tol": 0.001,
+            "shuffle": True,
+            "verbose": 0,
+            "eta0": 1.0,
+            "n_jobs": None,
+            "random_state": 0,
+            "early_stopping": False,
+            "validation_fraction": 0.1,
+            "n_iter_no_change": 5,
+            "class_weight": None,
+            "warm_start": False
+        },
+        "TheilSenRegressor": {
+            "fit_intercept": True,
+            "copy_X": True,
+            "max_subpopulation": 10000,
+            "n_subsamples": None,
+            "max_iter": 300,
+            "tol": 0.001,
+            "random_state": None,
+            "n_jobs": None,
+            "verbose": False
+        },
+        "HuberRegressor": {
+            "epsilon": 1.35,
+            "max_iter": 100,
+            "alpha": 0.0001,
+            "warm_start": False,
+            "fit_intercept": True,
+            "tol": 1e-05
+        },
+        "ElasticNet": {
+            "alpha": 1.0,
+            "l1_ratio": 0.5,
+            "fit_intercept": True,
+            "precompute": False,
+            "max_iter": 1000,
+            "copy_X": True,
+            "tol": 0.0001,
+            "warm_start": False,
+            "positive": False,
+            "random_state": None,
+            "selection": "cyclic"
+        },
+        "OrthogonalMatchingPursuit": {
+            "n_nonzero_coefs": None,
+            "tol": None,
+            "fit_intercept": True,
+            "precompute": "auto"
+        },
             "SVR": {
                 "kernel": "rbf",
                 "C": 1.0,
