@@ -10,7 +10,16 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
 from sklearn.neighbors import KNeighborsClassifier
+from sklearn.metrics import mean_squared_error as MSE
 from xgboost import XGBRegressor as xgbr
+import re
+xgb=0
+
+def clean_feature_name(name):
+    # Remove invalid characters and replace spaces with underscores
+    name = re.sub(r'[^a-zA-Z0-9_]', '', name)
+    name = re.sub(r'\s+', '_', name)
+    return name
 
 def drop_non_numeric_data(data):
     numeric_columns = data.select_dtypes(include=['number']).columns
@@ -28,7 +37,15 @@ def drop_non_numeric_data(data):
             if drop_columns:
                 data = data.select_dtypes(include=['number'])
             else:
-                print("Keeping non-numeric data.")
+                # Convert non-numeric columns to numeric if possible
+                for column in non_numeric_columns:
+                    try:
+                        data[column] = pd.to_numeric(data[column], errors='coerce')
+                    except ValueError:
+                        pass
+
+                # Drop any remaining non-numeric columns
+                data = data.select_dtypes(include=['number'])
 
     return data
 
@@ -72,6 +89,10 @@ def select_target_column():
     ok_button = tk.Button(column_window, text="OK", command=set_target_column)
     ok_button.pack()
 
+from xgboost import DMatrix
+
+from xgboost import DMatrix
+
 def train_model():
     file_path = file_entry.get()
     model_name = model_entry.get()
@@ -99,6 +120,9 @@ def train_model():
     X = data.drop(columns=[target_column])
     y = data[target_column]
 
+    # Preprocess feature names
+    X.columns = [clean_feature_name(col) for col in X.columns]
+
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
     if y.dtype == 'int':
@@ -112,17 +136,35 @@ def train_model():
     elif model_name.lower() == "knn":
         model = KNeighborsClassifier()
     else:
-        model = xgbr()
-    print(X_train.shape, y_train.shape)
-    print(X_train.dtype, ytrain.dtype)
+        # Convert data to DMatrix format
+        dtrain = DMatrix(X_train, label=y_train, feature_names=list(X_train.columns))
+        dtest = DMatrix(X_test, label=y_test, feature_names=list(X_test.columns))
 
+        # Set XGBoost parameters
+        params = {
+            'objective': 'reg:squarederror',
+            'eval_metric': 'rmse',
+            'seed': 42
+        }
+
+        # Train XGBoost model
+        model = xgbr(**params)
+        xgb=1
     model.fit(X_train, y_train)
     y_pred = model.predict(X_test)
     accuracy = model.score(X_test, y_test)
     plt.plot(y_pred,y_test)
+    if xgb==1:
+        accuracy = MSE(y_test, y_pred, squared=False)
+    else:
+        accuracy = model.score(X_test, y_test)
+
+    print('Data shapes: ', X_train.shape, y_train.shape)
+    print('Target data type: ', y_train.dtype)
+
+    plt.plot(y_pred, y_test)
 
     result_label.config(text=f"Model: {model_name}\nAccuracy: {accuracy:.2f}")
-
 # Create the main window
 window = tk.Tk()
 window.title("Machine Learning Model Trainer")
