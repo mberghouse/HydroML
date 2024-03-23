@@ -1,4 +1,6 @@
-
+import matplotlib.pyplot as plt
+import os
+import numpy as np
 import tkinter as tk
 from tkinter import filedialog
 import pandas as pd
@@ -8,7 +10,7 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
 from sklearn.neighbors import KNeighborsClassifier
-from xgboost import XGBClassifier
+from xgboost import XGBRegressor as xgbr
 
 def drop_non_numeric_data(data):
     numeric_columns = data.select_dtypes(include=['number']).columns
@@ -99,6 +101,8 @@ def train_model():
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
+    if y.dtype == 'int':
+        print('target contains classification labels. Please use a classifier')
     if model_name.lower() == "randomforest":
         model = RandomForestRegressor()
     elif model_name.lower() == "logisticregression":
@@ -108,11 +112,14 @@ def train_model():
     elif model_name.lower() == "knn":
         model = KNeighborsClassifier()
     else:
-        model = XGBClassifier()
+        model = xgbr()
+    print(X_train.shape, y_train.shape)
+    print(X_train.dtype, ytrain.dtype)
 
     model.fit(X_train, y_train)
     y_pred = model.predict(X_test)
     accuracy = model.score(X_test, y_test)
+    plt.plot(y_pred,y_test)
 
     result_label.config(text=f"Model: {model_name}\nAccuracy: {accuracy:.2f}")
 
