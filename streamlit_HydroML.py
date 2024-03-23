@@ -1,8 +1,8 @@
 import matplotlib.pyplot as plt
 import os
 import numpy as np
-import tkinter as tk
-from tkinter import filedialog, ttk
+import streamlit as st
+
 import pandas as pd
 
 from sklearn.model_selection import train_test_split
@@ -66,7 +66,7 @@ class ModelSelector:
             "alpha": 1.0,
             "fit_intercept": True,
             "copy_X": True,
-            "max_iter": None,
+            "max_iter": 1000,
             "tol": 0.0001,
             "solver": "auto",
             "random_state": None
@@ -195,7 +195,7 @@ class ModelSelector:
             "max_iter": 300,
             "tol": 0.001,
             "random_state": None,
-            "n_jobs": None,
+            "n_jobs": 2,
             "verbose": False
         },
         "HuberRegressor": {
@@ -237,10 +237,15 @@ class ModelSelector:
             },
             "XGBRegressor": {
                 "n_estimators": 100,
+                "eta": 0.3,
+                "gamma": 0.0,
+                "lambda": 1.0,
+                "alpha": 0.0,
+                "min_child_weight" : 1.0,
                 "learning_rate": 0.1,
                 "max_depth": 3,
-                "subsample": 1,
-                "colsample_bytree": 1
+                "subsample": 1.0,
+                "colsample_bytree": 1.0
             },
             "RandomForestClassifier": {
                 "n_estimators": 100,
@@ -315,227 +320,79 @@ def drop_non_numeric_data(data):
 
     return data
 
-def browse_file():
-    file_path = filedialog.askopenfilename(filetypes=[("CSV Files", "*.csv")])
-    file_entry.delete(0, tk.END)
-    file_entry.insert(tk.END, file_path)
-
-def select_toy_dataset():
-    global use_toy_dataset
-    use_toy_dataset = True
-    toy_dataset_type_var.set(False)
-    toy_dataset_type_frame.pack(side=tk.LEFT)
-    browse_button.config(text="Back", command=go_back)
-
-def go_back():
-    global use_toy_dataset
-    use_toy_dataset = False
-    toy_dataset_type_frame.pack_forget()
-    browse_button.config(text="Browse", command=browse_file)
-    file_label.config(text="Select CSV file:")
-    file_entry.delete(0, tk.END)
-
-def update_file_entry():
-    toy_dataset_type = toy_dataset_type_var.get()
-    if toy_dataset_type == "regression":
-        file_entry.delete(0, tk.END)
-        file_entry.insert(tk.END, "Diabetes Dataset")
-    elif toy_dataset_type == "classification":
-        file_entry.delete(0, tk.END)
-        file_entry.insert(tk.END, "Iris Dataset")
-
-def select_target_column():
-    global data
-
-    if use_toy_dataset:
-        toy_dataset_type = toy_dataset_type_var.get()
-        if toy_dataset_type == "regression":
-            # Load the diabetes dataset for regression
-            diabetes = load_diabetes()
-            data = pd.DataFrame(data=diabetes.data, columns=diabetes.feature_names)
-            data['target'] = diabetes.target
-        elif toy_dataset_type == "classification":
-            # Load the iris dataset for classification
-            iris = load_iris()
-            data = pd.DataFrame(data=iris.data, columns=iris.feature_names)
-            data['target'] = iris.target
-    else:
-        file_path = file_entry.get()
-        try:
-            data = pd.read_csv(file_path, encoding='latin1', low_memory=False)
-        except UnicodeDecodeError:
-            data = pd.read_csv(file_path, encoding='utf-16', low_memory=False)
-
-    try:
-        data = drop_non_numeric_data(data)
-    except ValueError as e:
-        tk.messagebox.showerror("Error", str(e))
-        return
-
-    column_window = tk.Toplevel(window)
-    column_window.title("Select Target Column")
-
-    column_label = tk.Label(column_window, text="Select the target column:")
-    column_label.pack()
-
-    column_var = tk.StringVar(column_window)
-    column_var.set(data.columns[0])
-
-    column_dropdown = tk.OptionMenu(column_window, column_var, *data.columns)
-    column_dropdown.pack()
-
-    def set_target_column():
-        target_column = column_var.get()
-        target_entry.delete(0, tk.END)
-        target_entry.insert(tk.END, target_column)
-        column_window.destroy()
-
-    ok_button = tk.Button(column_window, text="OK", command=set_target_column)
-    ok_button.pack()
-
-def select_model():
-    model_name = model_var.get()
-    model_entry.delete(0, tk.END)
-    model_entry.insert(tk.END, model_name)
-    load_model_parameters()
-
-def load_model_parameters():
-    model_name = model_entry.get()
-    parameters = model_selector.get_model_parameters(model_name)
-
-    param_window = tk.Toplevel(window)
-    param_window.title("Model Parameters")
-
-    param_frame = ttk.Frame(param_window)
-    param_frame.pack(padx=10, pady=10)
-
-    param_entries = {}
-    for param, value in parameters.items():
-        param_label = ttk.Label(param_frame, text=param)
-        param_label.pack()
-        param_entry = ttk.Entry(param_frame)
-        param_entry.insert(tk.END, str(value))
-        param_entry.pack()
-        param_entries[param] = param_entry
-
-    def update_parameters():
-        for param, entry in param_entries.items():
-            value = entry.get()
-            try:
-                parameters[param] = eval(value)
-            except (NameError, SyntaxError):
-                parameters[param] = value
-        param_window.destroy()
-
-    update_button = ttk.Button(param_window, text="Update Parameters", command=update_parameters)
-    update_button.pack()
-
-def train_model(data):
-    model_name = model_entry.get()
-    target_column = target_entry.get()
-
+def train_model(data, model_name, target_column, parameters, model_selector):
     X = data.drop(columns=[target_column])
     y = data[target_column]
 
-    # Clean feature names
     X.columns = [clean_feature_name(col) for col in X.columns]
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
     model_class = model_selector.get_model(model_name)
-    parameters = model_selector.get_model_parameters(model_name)
-
-    # if model_name == "XGBRegressor":
-        # dtrain = DMatrix(X_train, label=y_train, feature_names=list(X_train.columns))
-        # dtest = DMatrix(X_test, label=y_test, feature_names=list(X_test.columns))
-        # model = model_class(**parameters)
-        # model.fit(dtrain)
-        # y_pred = model.predict(dtest)
-        # accuracy = model.score(dtest)
-    # else:
     model = model_class(**parameters)
     model.fit(X_train, y_train)
     y_pred = model.predict(X_test)
     accuracy = model.score(X_test, y_test)
 
-    print('Data shapes: ', X_train.shape, y_train.shape)
-    print('Target data type: ', y_train.dtype)
+    fig, ax = plt.subplots(figsize=(8, 6))
+    ax.scatter(y_test, y_pred)
+    ax.set_xlabel("True Values")
+    ax.set_ylabel("Predictions")
+    ax.set_title(f"{model_name} - Predictions vs True Values - Accuracy: {accuracy}")
+    st.pyplot(fig)
 
-    plt.figure(figsize=(8, 6))
-    plt.scatter(y_test, y_pred)
-    plt.xlabel("True Values")
-    plt.ylabel("Predictions")
-    plt.title(f"{model_name} - Predictions vs True Values - Accuracy: {accuracy}")
-    plt.show()
+    st.write(f"Model: {model_name}")
+    st.write(f"Accuracy: {accuracy:.2f}")
 
-    result_label.config(text=f"Model: {model_name}\nAccuracy: {accuracy:.2f}")
+# Streamlit app
+def main():
+    st.title("Machine Learning Model Trainer")
 
-# Create the main window
-window = tk.Tk()
-window.title("Machine Learning Model Trainer")
-window.geometry("800x600")  # Set the window size
+    # File upload
+    file = st.file_uploader("Upload CSV file", type=["csv"])
 
-# Set the font size
-font_size = 14
-window.option_add("*Font", f"Arial {font_size}")
+    if file is not None:
+        try:
+            data = pd.read_csv(file, encoding='latin1', low_memory=False)
+        except UnicodeDecodeError:
+            data = pd.read_csv(file, encoding='utf-16', low_memory=False)
+        data = drop_non_numeric_data(data)
 
-# Create and pack the widgets
-file_label = tk.Label(window, text="Select CSV file:")
-file_label.pack(pady=10)
+    # Toy dataset selection
+    toy_dataset = st.sidebar.selectbox("Select a toy dataset", ("None", "Diabetes (Regression)", "Iris (Classification)"))
 
-file_entry = tk.Entry(window, width=50)
-file_entry.pack()
+    if toy_dataset == "Diabetes (Regression)":
+        diabetes = load_diabetes()
+        data = pd.DataFrame(data=diabetes.data, columns=diabetes.feature_names)
+        data['target'] = diabetes.target
+    elif toy_dataset == "Iris (Classification)":
+        iris = load_iris()
+        data = pd.DataFrame(data=iris.data, columns=iris.feature_names)
+        data['target'] = iris.target
 
-browse_button = tk.Button(window, text="Browse", command=browse_file)
-browse_button.pack(pady=10)
+    if 'data' in locals():
+        # Target column selection
+        target_column = st.sidebar.selectbox("Select the target column", data.columns)
 
-toy_dataset_frame = tk.Frame(window)
-toy_dataset_frame.pack(pady=10)
+        # Model selection
+        model_selector = ModelSelector()
+        model_name = st.sidebar.selectbox("Select a model", list(model_selector.regression_models.keys()) + list(model_selector.classification_models.keys()))
 
-toy_dataset_button = tk.Button(toy_dataset_frame, text="Toy Dataset", command=select_toy_dataset)
-toy_dataset_button.pack(side=tk.LEFT, padx=5)
+        # Model parameters
+        parameters = model_selector.get_model_parameters(model_name)
+        param_container = st.sidebar.expander("Model Parameters")
+        with param_container:
+            for param, value in parameters.items():
+                if isinstance(value, float):
+                    parameters[param] = st.number_input(param, value=value, format="%.5f")
+                elif isinstance(value, int):
+                    parameters[param] = st.number_input(param, value=value, step=1)
+                else:
+                    parameters[param] = st.text_input(param, value=str(value))
 
-toy_dataset_type_frame = tk.Frame(toy_dataset_frame)
-toy_dataset_type_frame.pack(side=tk.LEFT)
+        # Train model button
+        if st.button("Train Model"):
+            train_model(data, model_name, target_column, parameters, model_selector)
 
-toy_dataset_type_var = tk.StringVar()
-regression_button = tk.Radiobutton(toy_dataset_type_frame, text="Regression", variable=toy_dataset_type_var, value="regression", command=update_file_entry)
-regression_button.pack(side=tk.LEFT, padx=5)
-classification_button = tk.Radiobutton(toy_dataset_type_frame, text="Classification", variable=toy_dataset_type_var, value="classification", command=update_file_entry)
-classification_button.pack(side=tk.LEFT, padx=5)
-
-target_label = tk.Label(window, text="Target column:")
-target_label.pack(pady=10)
-
-target_entry = tk.Entry(window, width=30)
-target_entry.pack()
-
-select_target_button = tk.Button(window, text="Select Target Column", command=select_target_column)
-select_target_button.pack(pady=10)
-
-model_label = tk.Label(window, text="Select a model:")
-model_label.pack(pady=10)
-
-model_var = tk.StringVar()
-model_selector = ModelSelector()
-model_dropdown = tk.OptionMenu(window, model_var, *list(model_selector.regression_models.keys()) + list(model_selector.classification_models.keys()))
-model_dropdown.pack()
-
-select_model_button = tk.Button(window, text="Select Model Parameters", command=select_model)
-select_model_button.pack(pady=10)
-
-model_entry = tk.Entry(window, width=30)
-model_entry.pack()
-
-train_button = tk.Button(window, text="Train Model", command=lambda: train_model(data))
-train_button.pack(pady=10)
-
-result_label = tk.Label(window, text="")
-result_label.pack()
-
-# Initialize variables
-use_toy_dataset = False
-data = None
-
-# Start the main event loop
-window.mainloop()
+if __name__ == '__main__':
+    main()
