@@ -7,7 +7,6 @@ import pandas as pd
 
 from sklearn.model_selection import train_test_split
 from sklearn.impute import SimpleImputer
-from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sklearn.linear_model import LogisticRegression, LinearRegression, Ridge, RidgeCV, Lasso, LassoLars, BayesianRidge, TweedieRegressor, SGDRegressor, SGDClassifier, Perceptron, TheilSenRegressor, HuberRegressor, ElasticNet, OrthogonalMatchingPursuit
 from sklearn.cluster import KMeans, AgglomerativeClustering, Birch, DBSCAN, BisectingKMeans, MiniBatchKMeans, SpectralClustering, SpectralBiClustering
 from sklearn.cluster import affinity_propagation, cluster_optics_dbscan, cluster_optics_xi, computer_optics_graph, dbscan, estimate_bandwidth, k_means, kmeans_plusplus, mean_shift, spectral_clustering, ward_tree
@@ -16,12 +15,18 @@ from sklearn.covariance import EmpiricalCovariance, GraphicalLasso, GraphicalLas
 from sklearn.cross_decomposition import CCA, PLSCanonical, PLSRegression, PLSSVD
 from sklearn.svm import SVC, SVR
 from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
+from sklearn.decomposition import FactorAnalysis, FastICA, IncrementalPCA, MiniBatchSparsePCA, PCA
 from xgboost import XGBRegressor as xgbr
 from xgboost import DMatrix
 import re
+from sklearn.naive_bayes import BernoulliNB, CategoricalNB, ComplementNB, GaussianNB, MultinomialNB
+from sklearn.neural_network import BernoulliRBM, MLPClassifier, MLPRegressor
+from sklearn.pipeline import Piperlines, FeatureUnion, make_pipeeline, make_union
+from sklearn.ensemble import ADABoostClassifier, ADABoostRegressor, BaggingClassifier, BaggingRegressor, ExtraTreesClassifier, ExtraTreesRegressor, GradientBoostingClassifier, GradientBoostingRegressor, RandomForestRegressor, RandomForestClassifier, StackingClassifier, StackingRegressor, VotingClassifier, VotingRegressor, HistGradientBoostingRegressor,HistGradientBoostingClassifier
 from sklearn.datasets import load_iris, load_diabetes, load_breast_cancer, load_digits, load_files, load_linnerud, load_sample_images, load_wine, fetch_california_housing, fetch_covtype, fetch_kddcup99, fetch_rcv1, fetch_olivetti_faces
 from sklearn.metrics import accuracy_score, auc, confusion_matrix, f1_score, jaccard_score, roc_auc_score,average_precision_score
 from sklearn.metrics import max_error, explained_variance_score, mean_absolute_error, mean_squared_error, r2_score, mean_absolute_percentage_error, ConfusionMatrixDisplay,
+from sklearn.preprocessing import Binarizer, FunctionTransformer, KBinsDiscretizer, KernelCenterer, LabelBinarizer, LabelEncoder, MaxAbsScaler, MinMaxScaler, Normalizer, OneHotEncoder, OrdinalEncoder, PolynomialFeatures, PowerTransformer, QuantileTransformer, SplineTransformer, StandardScaler, binarize, label_binarize, maxabs_scale, minmax_scale, normalize
 class ModelSelector:
     def __init__(self):
         self.regression_models = {
