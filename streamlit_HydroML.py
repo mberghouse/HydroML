@@ -8,6 +8,9 @@ import re
 
 from sklearn.model_selection import train_test_split
 from sklearn.impute import SimpleImputer
+from sklearn.compose import ColumnTransformer
+from sklearn.cluster import affinity_propagation, cluster_optics_dbscan, cluster_optics_xi, dbscan, estimate_bandwidth, k_means, kmeans_plusplus, mean_shift, spectral_clustering, ward_tree
+
 from sklearn.pipeline import Pipeline, FeatureUnion, make_pipeline, make_union
 from sklearn.datasets import load_iris, load_diabetes, load_breast_cancer, load_digits, load_files, load_linnerud, load_sample_images, load_wine, fetch_california_housing, fetch_covtype, fetch_kddcup99, fetch_rcv1, fetch_olivetti_faces
 from sklearn.metrics import accuracy_score, auc, confusion_matrix, f1_score, jaccard_score, roc_auc_score,average_precision_score
@@ -58,9 +61,10 @@ def train_model(data, model_name, target_column, parameters, model_selector):
 
     model_class = model_selector.get_model(model_name)
     model = model_class(**parameters)
-    model.fit(X_train, y_train)
-    y_pred = model.predict(X_test)
-    accuracy = model.score(X_test, y_test)
+    pipeline = make_pipeline(StandardScaler(), model)
+    pipeline.fit(X_train, y_train)
+    y_pred = pipeline.predict(X_test)
+    accuracy = pipeline.score(X_test, y_test)
 
     fig, ax = plt.subplots(figsize=(8, 6))
     ax.scatter(y_test, y_pred)
