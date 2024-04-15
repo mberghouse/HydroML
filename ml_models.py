@@ -91,35 +91,26 @@ class ModelSelector:
         self.model_parameters = {
         "CCA": {
             "n_components": 2,
-            "scale": True,
             "max_iter": 500,
             "tol": 1e-06,
-            "copy": True
         },
         "PLSCanonical": {
             "n_components": 2,
-            "scale": True,
             "algorithm": "nipals",
             "max_iter": 500,
             "tol": 1e-06,
-            "copy": True
         },
         "PLSRegression": {
             "n_components": 2,
-            "scale": True,
             "max_iter": 500,
             "tol": 1e-06,
-            "copy": True
         },
         "PLSSVD": {
             "n_components": 2,
-            "scale": True,
-            "copy": True,
             "algorithm": "svd"
         },
         "FactorAnalysis": {
             "tol": 1e-2,
-            "copy": True,
             "max_iter": 1000,
             "svd_method": "randomized",
             "iterated_power": 3,
@@ -127,28 +118,21 @@ class ModelSelector:
         },
         "FastICA": {
             "algorithm": "parallel",
-            "whiten": True,
             "fun": "logcosh",
             "max_iter": 200,
             "tol": 1e-4
         },
         "IncrementalPCA": {
-            "whiten": False,
-            "copy": True
+            
         },
         "MiniBatchSparsePCA": {
             "alpha": 1,
             "ridge_alpha": 0.01,
             "n_iter": 100,
             "batch_size": 3,
-            "verbose": False,
-            "shuffle": True,
             "method": "lars",
-            "normalize_components": False
         },
         "PCA": {
-            "copy": True,
-            "whiten": False,
             "svd_solver": "auto",
             "tol": 1e-3
         },
@@ -159,7 +143,6 @@ class ModelSelector:
             "max_iter": 300,
             "tol": 1e-4,
             "verbose": 0,
-            "copy_x": True,
             "algorithm": "auto"
         },
         "AgglomerativeClustering": {
@@ -171,14 +154,14 @@ class ModelSelector:
             "threshold": 0.5,
             "branching_factor": 50,
             "n_clusters": 3,
-            "compute_labels": True,
-            "copy": True
+
         },
         "DBSCAN": {
             "eps": 0.5,
             "min_samples": 5,
             "metric": "euclidean",
             "algorithm": "auto",
+            'n_jobs':-1,
             "leaf_size": 30
         },
         "BisectingKMeans": {
@@ -187,8 +170,8 @@ class ModelSelector:
             "n_init": 1,
             "max_iter": 300,
             "tol": 1e-4,
+            'n_jobs':-1,
             "verbose": 0,
-            "copy_x": True,
             "bisecting_strategy": "biggest_inertia"
         },
         "SpectralClustering": {
@@ -197,10 +180,10 @@ class ModelSelector:
             "gamma": 1.0,
             "affinity": "rbf",
             "n_neighbors": 10,
+            'n_jobs':-1,
             "assign_labels": "kmeans",
             "degree": 3,
             "coef0": 1,
-            "verbose": False
         },
         "MiniBatchKMeans": {
             "n_clusters": 8,
@@ -208,36 +191,33 @@ class ModelSelector:
             "max_iter": 100,
             "batch_size": 100,
             "verbose": 0,
-            "compute_labels": True,
             "tol": 0.0,
             "max_no_improvement": 10,
             "n_init": 3,
+            'n_jobs':-1,
             "reassignment_ratio": 0.01
         },
         "BaggingRegressor": {
             "n_estimators": 10,
             "max_samples": 1.0,
             "max_features": 1.0,
-            "bootstrap": True,
-            "bootstrap_features": False,
-            "oob_score": False,
-            "warm_start": False,
+            'n_jobs':-1,
+
             "verbose": 0
         },
         "ExtraTreesRegressor": {
             "n_estimators": 100,
-            "criterion": "mse",
+            'min_impurity_decrease':0.0,
+            'n_jobs':-1,
+            "criterion": "squared_error",
             "min_samples_split": 2,
             "min_samples_leaf": 1,
             "min_weight_fraction_leaf": 0.0,
-            "max_features": "auto",
-            "bootstrap": False,
-            "oob_score": False,
-            "verbose": 0,
-            "warm_start": False
+            "max_features": 1.0,
+
         },
         "GradientBoostingRegressor": {
-            "loss": "ls",
+            "loss": "squared_error",
             "learning_rate": 0.1,
             "n_estimators": 100,
             "subsample": 1.0,
@@ -248,13 +228,11 @@ class ModelSelector:
             "max_depth": 3,
             "alpha": 0.9,
             "verbose": 0,
-            "warm_start": False,
             "validation_fraction": 0.1,
             "tol": 1e-4
         },
         "StackingRegressor": {
             "verbose": 0,
-            "passthrough": False
         },
         "HistGradientBoostingRegressor": {
             "loss": "squared_error",
@@ -264,7 +242,6 @@ class ModelSelector:
             "min_samples_leaf": 20,
             "l2_regularization": 0.0,
             "max_bins": 255,
-            "warm_start": False,
             "early_stopping": "auto",
             "scoring": "loss",
             "validation_fraction": 0.1,
@@ -274,7 +251,7 @@ class ModelSelector:
         "VotingRegressor": {
         },
         "MLPRegressor": {
-            "hidden_layer_sizes": (100,),
+            "hidden_layer_sizes": 100,
             "activation": "relu",
             "solver": "adam",
             "alpha": 0.0001,
@@ -283,13 +260,8 @@ class ModelSelector:
             "learning_rate_init": 0.001,
             "power_t": 0.5,
             "max_iter": 200,
-            "shuffle": True,
             "tol": 1e-4,
-            "verbose": False,
-            "warm_start": False,
             "momentum": 0.9,
-            "nesterovs_momentum": True,
-            "early_stopping": False,
             "validation_fraction": 0.1,
             "beta_1": 0.9,
             "beta_2": 0.999,
@@ -299,10 +271,10 @@ class ModelSelector:
         "BernoulliNB": {
             "alpha": 1.0,
             "binarize": 0.0,
-            "fit_prior": True
+
         },
         "MLPClassifier": {
-            "hidden_layer_sizes": (100,),
+            "hidden_layer_sizes": 100,
             "activation": "relu",
             "solver": "adam",
             "alpha": 0.0001,
@@ -311,13 +283,8 @@ class ModelSelector:
             "learning_rate_init": 0.001,
             "power_t": 0.5,
             "max_iter": 200,
-            "shuffle": True,
             "tol": 1e-4,
-            "verbose": False,
-            "warm_start": False,
             "momentum": 0.9,
-            "nesterovs_momentum": True,
-            "early_stopping": False,
             "validation_fraction": 0.1,
             "beta_1": 0.9,
             "beta_2": 0.999,
@@ -328,33 +295,27 @@ class ModelSelector:
             "n_components": 256,
             "learning_rate": 0.1,
             "batch_size": 10,
+            'n_jobs':-1,
             "n_iter": 10,
             "verbose": 0
         },
         "CategoricalNB": {
             "alpha": 1.0,
-            "fit_prior": True
         },
         "ComplementNB": {
             "alpha": 1.0,
-            "fit_prior": True,
-            "norm": False
         },
         "GaussianNB": {
             "var_smoothing": 1e-9
         },
         "MultinomialNB": {
             "alpha": 1.0,
-            "fit_prior": True
         },
         "BaggingClassifier": {
             "n_estimators": 10,
             "max_samples": 1.0,
+            'n_jobs':-1,
             "max_features": 1.0,
-            "bootstrap": True,
-            "bootstrap_features": False,
-            "oob_score": False,
-            "warm_start": False,
             "verbose": 0
         },
         "ExtraTreesClassifier": {
@@ -362,12 +323,10 @@ class ModelSelector:
             "criterion": "gini",
             "min_samples_split": 2,
             "min_samples_leaf": 1,
+            'n_jobs':-1,
             "min_weight_fraction_leaf": 0.0,
-            "max_features": "auto",
-            "bootstrap": False,
-            "oob_score": False,
+            "max_features": 1.0,
             "verbose": 0,
-            "warm_start": False
         },
         "GradientBoostingClassifier": {
             "loss": "deviance",
@@ -380,18 +339,13 @@ class ModelSelector:
             "min_weight_fraction_leaf": 0.0,
             "max_depth": 3,
             "verbose": 0,
-            "warm_start": False,
             "validation_fraction": 0.1,
-            "tol": 1e-4
+            "tol": 1e-4,
         },
         "StackingClassifier": {
-            "stack_method": "auto",
             "verbose": 0,
-            "passthrough": False
         },
         "VotingClassifier": {
-            "voting": "hard",
-            "flatten_transform": True
         },
         "HistGradientBoostingClassifier": {
             "loss": "log_loss",
@@ -401,8 +355,6 @@ class ModelSelector:
             "min_samples_leaf": 20,
             "l2_regularization": 0.0,
             "max_bins": 255,
-            "monotonic_cst": None,
-            "warm_start": False,
             "early_stopping": "auto",
             "scoring": "loss",
             "validation_fraction": 0.1,
@@ -411,50 +363,32 @@ class ModelSelector:
         },
         "RandomForestRegressor": {
         "n_estimators": 100,
-        "max_depth": None,
+        "max_depth": 100,
+        'min_weight_fraction_leaf':0.0, 
         "min_samples_split": 2,
-        "min_samples_leaf": 1
+        "min_samples_leaf": 1,
+        'n_jobs':-1,
         },
         "Ridge": {
             "alpha": 1.0,
-            "fit_intercept": True,
-            "copy_X": True,
             "max_iter": 1000,
             "tol": 0.0001,
             "solver": "auto",
             "random_state": 42
         },
         "RidgeCV": {
-            "alphas": (0.1, 1.0, 10.0),
-            "fit_intercept": True,
-            "scoring": None,
-            "cv": None,
-            "gcv_mode": None,
-            "store_cv_values": False
         },
         "Lasso": {
             "alpha": 1.0,
-            "fit_intercept": True,
-            "precompute": False,
-            "copy_X": True,
             "max_iter": 1000,
             "tol": 0.0001,
-            "warm_start": False,
-            "positive": False,
             "random_state": 42,
             "selection": "cyclic"
         },
         "LassoLars": {
             "alpha": 1.0,
-            "fit_intercept": True,
-            "verbose": False,
-            "precompute": "auto",
             "max_iter": 500,
             "eps": 2.220446049250313e-16,
-            "copy_X": True,
-            "fit_path": True,
-            "positive": False,
-            "jitter": None,
             "random_state": 42
         },
         "BayesianRidge": {
@@ -464,118 +398,79 @@ class ModelSelector:
             "alpha_2": 1e-06,
             "lambda_1": 1e-06,
             "lambda_2": 1e-06,
-            "compute_score": False,
-            "fit_intercept": True,
-            "copy_X": True,
-            "verbose": False
+
         },
         "TweedieRegressor": {
             "power": 0.0,
             "alpha": 1.0,
-            "fit_intercept": True,
-            "link": "auto",
             "max_iter": 100,
             "tol": 0.0001,
-            "warm_start": False,
-            "verbose": False
+    
         },
         "SGDRegressor": {
             "loss": "squared_error",
             "penalty": "l2",
             "alpha": 0.0001,
             "l1_ratio": 0.15,
-            "fit_intercept": True,
             "max_iter": 1000,
             "tol": 0.001,
-            "shuffle": True,
             "verbose": 0,
             "epsilon": 0.1,
             "random_state": 42,
-            "learning_rate": "invscaling",
             "eta0": 0.01,
             "power_t": 0.25,
-            "early_stopping": False,
             "validation_fraction": 0.1,
             "n_iter_no_change": 5,
-            "warm_start": False,
-            "average": False
+
         },
         "SGDClassifier": {
             "loss": "hinge",
             "penalty": "l2",
             "alpha": 0.0001,
             "l1_ratio": 0.15,
-            "fit_intercept": True,
             "max_iter": 1000,
             "tol": 0.001,
-            "shuffle": True,
             "verbose": 0,
             "epsilon": 0.1,
-            "n_jobs": 2,
             "random_state": 42,
-            "learning_rate": "optimal",
             "eta0": 0.0,
             "power_t": 0.5,
-            "early_stopping": False,
             "validation_fraction": 0.1,
             "n_iter_no_change": 5,
-            "class_weight": None,
-            "warm_start": False,
-            "average": False
         },
         "Perceptron": {
-            "penalty": None,
             "alpha": 0.0001,
-            "fit_intercept": True,
             "max_iter": 1000,
             "tol": 0.001,
-            "shuffle": True,
             "verbose": 0,
             "eta0": 1.0,
-            "n_jobs": 2,
+            'n_jobs':-1,
             "random_state": 0,
-            "early_stopping": False,
             "validation_fraction": 0.1,
             "n_iter_no_change": 5,
-            "class_weight": None,
-            "warm_start": False
         },
         "TheilSenRegressor": {
-            "fit_intercept": True,
-            "copy_X": True,
             "max_subpopulation": 10000,
-            "n_subsamples": None,
             "max_iter": 300,
             "tol": 0.001,
-            "random_state": None,
-            "n_jobs": 2,
-            "verbose": False
+            'n_jobs':-1,
         },
         "HuberRegressor": {
             "epsilon": 1.35,
             "max_iter": 100,
             "alpha": 0.0001,
-            "warm_start": False,
-            "fit_intercept": True,
             "tol": 1e-05
         },
         "ElasticNet": {
             "alpha": 1.0,
             "l1_ratio": 0.5,
-            "fit_intercept": True,
-            "precompute": False,
             "max_iter": 1000,
-            "copy_X": True,
             "tol": 0.0001,
-            "warm_start": False,
-            "positive": False,
             "random_state": 42,
             "selection": "cyclic"
         },
         "OrthogonalMatchingPursuit": {
-            "n_nonzero_coefs": None,
-            "tol": None,
-            "fit_intercept": True,
+
             "precompute": "auto"
         },
             "SVR": {
@@ -585,6 +480,7 @@ class ModelSelector:
             },
             "KNeighborsRegressor": {
                 "n_neighbors": 5,
+                'n_jobs':-1,
                 "weights": "uniform",
                 "algorithm": "auto"
             },
@@ -593,6 +489,7 @@ class ModelSelector:
                 "eta": 0.3,
                 "gamma": 0.0,
                 "lambda": 1.0,
+                'n_jobs':-1,
                 "alpha": 0.0,
                 "min_child_weight" : 1.0,
                 "learning_rate": 0.1,
@@ -602,13 +499,15 @@ class ModelSelector:
             },
             "RandomForestClassifier": {
                 "n_estimators": 100,
-                "max_depth": None,
+                "max_depth": 100,
+                'n_jobs':-1,
                 "min_samples_split": 2,
                 "min_samples_leaf": 1
             },
             "LogisticRegression": {
                 "penalty": "l2",
                 "C": 1.0,
+                'n_jobs':-1,
                 "solver": "lbfgs",
                 "max_iter": 100
             },
@@ -620,6 +519,7 @@ class ModelSelector:
             },
             "KNeighborsClassifier": {
                 "n_neighbors": 5,
+                'n_jobs':-1,
                 "weights": "uniform",
                 "algorithm": "auto"
             }
