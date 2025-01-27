@@ -1,6 +1,6 @@
 # HydroML: Machine Learning for Hydrological Data
 
-![HydroML Interface](hydroml.png)
+![HydroML Interface](hydroml.PNG)
 
 ## Overview
 HydroML is an interactive machine learning application designed specifically for hydrological data analysis. It provides a user-friendly interface for data collection, preprocessing, model training, and evaluation, with special support for USGS NWIS (National Water Information System) data.
