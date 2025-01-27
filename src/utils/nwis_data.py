@@ -4,6 +4,7 @@ import numpy as np
 import streamlit as st
 from typing import List, Dict
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import os
 
 def get_site_data(state_code: str, parameter_code: str, county: str = None, start_year: int = None, end_year: int = None) -> pd.DataFrame:
     """Get site data with optional county and year filtering."""
@@ -96,32 +97,39 @@ def get_site_timeseries(site_code: str, parameter_code: str, start_date: str = '
         return None
 
 def parallel_site_data_collection(site_codes: List[str], parameter_code: str, 
-                                max_workers: int = 4) -> pd.DataFrame:
+                                max_workers: int = None) -> pd.DataFrame:
     """Collect data from multiple sites in parallel."""
+    if max_workers is None:
+        max_workers = min(32, os.cpu_count() * 4)  # Optimize worker count
+    
     all_data = []
+    chunks = np.array_split(site_codes, max_workers)  # Split sites into chunks
     
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        future_to_site = {
-            executor.submit(get_site_timeseries, site_code, parameter_code): site_code 
-            for site_code in site_codes
-        }
+        futures = []
+        for chunk in chunks:
+            futures.append(
+                executor.submit(
+                    lambda x: [get_site_timeseries(site, parameter_code) for site in x],
+                    chunk
+                )
+            )
         
         with st.spinner('Collecting data from multiple sites...'):
             progress_bar = st.progress(0)
             completed = 0
             
-            for future in as_completed(future_to_site):
-                site_code = future_to_site[future]
+            for future in as_completed(futures):
                 try:
-                    df = future.result()
-                    if df is not None:
-                        df['site_no'] = site_code
-                        all_data.append(df)
+                    results = future.result()
+                    for df in results:
+                        if df is not None:
+                            all_data.append(df)
                 except Exception as e:
-                    st.error(f"Error collecting data for site {site_code}: {str(e)}")
+                    st.error(f"Error collecting data: {str(e)}")
                 
                 completed += 1
-                progress_bar.progress(completed / len(site_codes))
+                progress_bar.progress(completed / len(futures))
     
     if all_data:
         return pd.concat(all_data)

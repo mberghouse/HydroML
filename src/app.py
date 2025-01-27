@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from models.sklearn_models import ModelSelector
 from models.pytorch_models import ModelFactory
 from utils.data_processing import clean_feature_name, drop_non_numeric_data
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.datasets import load_iris, load_diabetes
@@ -20,13 +20,36 @@ from utils.nwis_data import (
     collect_multiple_parameter_data,
     collect_high_frequency_data
 )
+import optuna
 
 def train_sklearn_model(data, model_name, target_column, parameters, model_selector):
     try:
         X = data.drop(columns=[target_column])
         y = data[target_column]
-
         X.columns = [clean_feature_name(col) for col in X.columns]
+        
+        use_optuna = st.checkbox("Use Optuna for hyperparameter optimization")
+        
+        if use_optuna:
+            n_trials = st.number_input("Number of Optuna trials", min_value=1, value=20)
+            study_duration = st.number_input("Study duration (minutes)", min_value=1, value=10)
+            
+            def objective(trial):
+                # Define parameter search space based on model type
+                optimized_params = model_selector.get_optuna_parameters(model_name, trial)
+                model = model_selector.get_model(model_name)(**optimized_params)
+                pipeline = make_pipeline(StandardScaler(), model)
+                
+                score = cross_val_score(pipeline, X, y, cv=5).mean()
+                return score
+            
+            study = optuna.create_study(direction="maximize")
+            study.optimize(objective, n_trials=n_trials, timeout=60*study_duration)
+            
+            parameters = study.best_params
+            st.write("### Best Parameters Found:")
+            st.write(parameters)
+        
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
         model_class = model_selector.get_model(model_name)
@@ -190,6 +213,30 @@ def pytorch_model_designer(data=None, target_column=None):
         st.write(f"Input dimension: {input_dim} (based on data)")
         output_dim = 1
         
+        # Model configuration
+        use_optuna = st.checkbox("Use Optuna for hyperparameter optimization")
+        
+        if use_optuna:
+            n_trials = st.number_input("Number of Optuna trials", min_value=1, value=20)
+            study_duration = st.number_input("Study duration (minutes)", min_value=1, value=10)
+        
+        # Manual hyperparameter configuration
+        col1, col2 = st.columns(2)
+        with col1:
+            optimizer_name = st.selectbox("Optimizer", 
+                                        ["Adam", "SGD", "RMSprop", "AdamW"])
+            learning_rate = st.number_input("Learning rate", 
+                                          value=0.001, format="%.6f")
+            batch_size = st.number_input("Batch size", 
+                                       min_value=1, value=32)
+            
+        with col2:
+            epochs = st.number_input("Epochs", min_value=1, value=10)
+            dropout_rate = st.number_input("Dropout rate", 
+                                         min_value=0.0, max_value=1.0, value=0.2)
+            weight_decay = st.number_input("Weight decay", 
+                                         value=0.0, format="%.6f")
+        
         num_layers = st.slider("Number of hidden layers", 1, 5, 2)
         hidden_dims = []
         
@@ -203,10 +250,6 @@ def pytorch_model_designer(data=None, target_column=None):
             model = ModelFactory.get_custom_mlp(input_dim, hidden_dims, output_dim)
             st.write("Model architecture:")
             st.code(str(model))
-            
-            epochs = st.slider("Number of epochs", 5, 100, 10)
-            batch_size = st.slider("Batch size", 8, 128, 32)
-            learning_rate = st.number_input("Learning rate", value=0.001, format="%.4f")
             
             trained_model = train_pytorch_model(model, data, target_column, 
                                              epochs=epochs, 
