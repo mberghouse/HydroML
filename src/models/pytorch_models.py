@@ -29,8 +29,8 @@ class ModelFactory:
         return timm.create_model(model_name, pretrained=pretrained, num_classes=num_classes)
         
     @staticmethod
-    def get_custom_mlp(input_dim, hidden_dims, output_dim):
-        return CustomMLP(input_dim, hidden_dims, output_dim)
+    def get_custom_mlp(input_dim, hidden_dims, output_dim, dropout_rate=0.1):
+        return CustomMLP(input_dim, hidden_dims, output_dim, dropout_rate)
 
     @staticmethod
     def get_available_image_models():

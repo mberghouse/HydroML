@@ -21,6 +21,7 @@ from utils.nwis_data import (
     collect_high_frequency_data
 )
 import optuna
+from sklearn.preprocessing import LabelEncoder
 
 def train_sklearn_model(data, model_name, target_column, parameters, model_selector):
     try:
@@ -110,63 +111,112 @@ def train_sklearn_model(data, model_name, target_column, parameters, model_selec
     except Exception as e:
         st.error(f"Error training model: {str(e)}")
 
-def train_pytorch_model(model, data, target_column, epochs=10, batch_size=32, learning_rate=0.001):
+def train_pytorch_model(model, data, target_column, epochs=10, batch_size=32, 
+                       learning_rate=0.001, optimizer_name='Adam', 
+                       criterion=None, return_best_loss=False):
     try:
+        if criterion is None:
+            criterion = nn.MSELoss()
+            
+        # Determine if classification
+        unique_values = len(data[target_column].unique())
+        is_classification = unique_values < 10
+        
+        # Split data into train and validation sets
         X = data.drop(columns=[target_column]).values
         y = data[target_column].values
         
-        X = torch.FloatTensor(X)
-        y = torch.FloatTensor(y)
+        if is_classification:
+            # Convert labels to integers if they aren't already
+            if not np.issubdtype(y.dtype, np.integer):
+                label_encoder = LabelEncoder()
+                y = label_encoder.fit_transform(y)
         
-        # Create data loader
-        dataset = torch.utils.data.TensorDataset(X, y.reshape(-1, 1))
-        train_size = int(0.8 * len(dataset))
-        test_size = len(dataset) - train_size
-        train_dataset, test_dataset = torch.utils.data.random_split(dataset, [train_size, test_size])
+        X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, 
+                                                         random_state=42)
         
-        train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-        test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size)
+        # Convert to tensors
+        X_train = torch.FloatTensor(X_train)
+        X_val = torch.FloatTensor(X_val)
         
-        # Training setup
-        criterion = nn.MSELoss()
-        optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+        if is_classification:
+            y_train = torch.LongTensor(y_train)
+            y_val = torch.LongTensor(y_val)
+        else:
+            y_train = torch.FloatTensor(y_train)
+            y_val = torch.FloatTensor(y_val)
         
-        # Training loop
+        # Create data loaders
+        train_dataset = torch.utils.data.TensorDataset(X_train, 
+                                                      y_train.reshape(-1, 1))
+        val_dataset = torch.utils.data.TensorDataset(X_val, 
+                                                    y_val.reshape(-1, 1))
+        
+        train_loader = torch.utils.data.DataLoader(train_dataset, 
+                                                  batch_size=batch_size, 
+                                                  shuffle=True)
+        val_loader = torch.utils.data.DataLoader(val_dataset, 
+                                               batch_size=batch_size)
+        
+        # Select optimizer based on name
+        optimizer_dict = {
+            'Adam': torch.optim.Adam,
+            'SGD': torch.optim.SGD,
+            'RMSprop': torch.optim.RMSprop,
+            'AdamW': torch.optim.AdamW
+        }
+        optimizer_class = optimizer_dict.get(optimizer_name, torch.optim.Adam)
+        optimizer = optimizer_class(model.parameters(), lr=learning_rate)
+        
+        best_test_loss = float('inf')
         train_losses = []
         test_losses = []
         
         for epoch in range(epochs):
             model.train()
             epoch_loss = 0
-            with st.spinner(f'Training epoch {epoch+1}/{epochs}...'):
-                for batch_X, batch_y in train_loader:
-                    optimizer.zero_grad()
+            for batch_X, batch_y in train_loader:
+                optimizer.zero_grad()
+                outputs = model(batch_X)
+                
+                if is_classification:
+                    if unique_values == 2:  # Binary classification
+                        outputs = outputs.squeeze()
+                        batch_y = batch_y.float().squeeze()
+                    else:  # Multi-class
+                        batch_y = batch_y.squeeze()
+                
+                loss = criterion(outputs, batch_y)
+                loss.backward()
+                optimizer.step()
+                epoch_loss += loss.item()
+            
+            train_losses.append(epoch_loss / len(train_loader))
+            
+            # Validation
+            model.eval()
+            test_loss = 0
+            with torch.no_grad():
+                for batch_X, batch_y in val_loader:
                     outputs = model(batch_X)
-                    loss = criterion(outputs, batch_y)
-                    loss.backward()
-                    optimizer.step()
-                    epoch_loss += loss.item()
-                
-                train_losses.append(epoch_loss / len(train_loader))
-                
-                # Validation
-                model.eval()
-                test_loss = 0
-                predictions = []
-                actuals = []
-                
-                with torch.no_grad():
-                    for batch_X, batch_y in test_loader:
-                        outputs = model(batch_X)
-                        test_loss += criterion(outputs, batch_y).item()
-                        predictions.extend(outputs.numpy().flatten())
-                        actuals.extend(batch_y.numpy().flatten())
-                
-                test_losses.append(test_loss / len(test_loader))
-                
-                # Update progress
-                st.write(f"Epoch {epoch+1}, Train Loss: {train_losses[-1]:.4f}, Test Loss: {test_losses[-1]:.4f}")
+                    if is_classification:
+                        if unique_values == 2:  # Binary classification
+                            outputs = outputs.squeeze()
+                            batch_y = batch_y.float().squeeze()
+                        else:  # Multi-class
+                            batch_y = batch_y.squeeze()
+                    test_loss += criterion(outputs, batch_y).item()
+            
+            test_loss = test_loss / len(val_loader)
+            test_losses.append(test_loss)
+            best_test_loss = min(best_test_loss, test_loss)
+            
+            if not return_best_loss:
+                st.write(f"Epoch {epoch+1}, Train Loss: {train_losses[-1]:.4f}, Test Loss: {test_loss:.4f}")
         
+        if return_best_loss:
+            return best_test_loss
+            
         # Plot results
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 5))
         
@@ -178,9 +228,14 @@ def train_pytorch_model(model, data, target_column, epochs=10, batch_size=32, le
         ax1.legend()
         ax1.set_title('Training and Test Loss')
         
+        # Convert data to tensors for predictions
+        X_tensor = torch.FloatTensor(X)
+        with torch.no_grad():
+            predictions = model(X_tensor).cpu().numpy().flatten()
+        
         # Predictions vs Actuals
-        ax2.scatter(actuals, predictions)
-        ax2.plot([min(actuals), max(actuals)], [min(actuals), max(actuals)], 'r--')
+        ax2.scatter(y, predictions)
+        ax2.plot([min(y), max(y)], [min(y), max(y)], 'r--')
         ax2.set_xlabel('Actual Values')
         ax2.set_ylabel('Predictions')
         ax2.set_title('Predictions vs Actual Values')
@@ -188,8 +243,8 @@ def train_pytorch_model(model, data, target_column, epochs=10, batch_size=32, le
         st.pyplot(fig)
         
         # Calculate metrics
-        mse = mean_squared_error(actuals, predictions)
-        r2 = r2_score(actuals, predictions)
+        mse = mean_squared_error(y, predictions)
+        r2 = r2_score(y, predictions)
         st.write(f"Final MSE: {mse:.4f}")
         st.write(f"R² Score: {r2:.4f}")
         
@@ -197,11 +252,11 @@ def train_pytorch_model(model, data, target_column, epochs=10, batch_size=32, le
         
     except Exception as e:
         st.error(f"Error training model: {str(e)}")
+        if return_best_loss:
+            return float('inf')
         return None
 
 def pytorch_model_designer(data=None, target_column=None):
-    st.subheader("PyTorch Model Designer")
-    
     if data is None:
         st.error("Please load data first")
         return
@@ -211,50 +266,135 @@ def pytorch_model_designer(data=None, target_column=None):
     if data_type == "Tabular":
         input_dim = data.drop(columns=[target_column]).shape[1]
         st.write(f"Input dimension: {input_dim} (based on data)")
-        output_dim = 1
         
-        # Model configuration
+        # Determine if classification or regression based on unique values
+        unique_values = len(data[target_column].unique())
+        is_classification = unique_values < 10  # Heuristic for classification
+        output_dim = unique_values if is_classification else 1
+        
         use_optuna = st.checkbox("Use Optuna for hyperparameter optimization")
+        epochs = st.number_input("Number of epochs", min_value=1, value=10)
         
         if use_optuna:
+            st.subheader("Hyperparameter Optimization Settings")
+            
+            # Loss function selection based on task type
+            if is_classification:
+                if output_dim == 2:  # Binary classification
+                    loss_functions = {
+                        "BCEWithLogits": nn.BCEWithLogitsLoss(),
+                        "BCE": nn.BCELoss()
+                    }
+                else:  # Multi-class classification
+                    loss_functions = {
+                        "CrossEntropy": nn.CrossEntropyLoss(),
+                        "NLLLoss": nn.NLLLoss(),
+                        "KLDiv": nn.KLDivLoss()
+                    }
+                st.write(f"Classification task detected ({output_dim} classes)")
+            else:
+                loss_functions = {
+                    "MSE": nn.MSELoss(),
+                    "MAE": nn.L1Loss(),
+                    "Huber": nn.HuberLoss(),
+                    "SmoothL1": nn.SmoothL1Loss(),
+                    "PoissonNLL": nn.PoissonNLLLoss()
+                }
+                st.write("Regression task detected")
+                
+            loss_function = st.selectbox("Loss Function", list(loss_functions.keys()))
+            
+            # Hyperparameter ranges
+            st.write("### Set Hyperparameter Ranges")
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                lr_min = st.number_input("Learning Rate Min", value=1e-5, format="%.1e")
+                lr_max = st.number_input("Learning Rate Max", value=1e-1, format="%.1e")
+                
+                batch_sizes = st.text_input("Batch Sizes (comma-separated)", 
+                                          value="16,32,64,128")
+                batch_size_list = [int(x.strip()) for x in batch_sizes.split(",")]
+                
+                min_layers = st.number_input("Min Layers", min_value=1, value=1)
+                max_layers = st.number_input("Max Layers", min_value=1, value=5)
+            
+            with col2:
+                dropout_min = st.number_input("Dropout Min", min_value=0.0, 
+                                            max_value=1.0, value=0.1)
+                dropout_max = st.number_input("Dropout Max", min_value=0.0, 
+                                            max_value=1.0, value=0.5)
+                
+                hidden_dim_min = st.number_input("Hidden Dim Min", 
+                                               min_value=4, value=min(input_dim, 4))
+                hidden_dim_max = st.number_input("Hidden Dim Max", 
+                                               min_value=4, value=max(input_dim * 2, 512))
+            
+            optimizers = st.multiselect("Optimizers to Try", 
+                                      ['Adam', 'SGD', 'RMSprop', 'AdamW'],
+                                      default=['Adam'])
+            
             n_trials = st.number_input("Number of Optuna trials", min_value=1, value=20)
-            study_duration = st.number_input("Study duration (minutes)", min_value=1, value=10)
-        
-        # Manual hyperparameter configuration
-        col1, col2 = st.columns(2)
-        with col1:
-            optimizer_name = st.selectbox("Optimizer", 
-                                        ["Adam", "SGD", "RMSprop", "AdamW"])
-            learning_rate = st.number_input("Learning rate", 
-                                          value=0.001, format="%.6f")
-            batch_size = st.number_input("Batch size", 
-                                       min_value=1, value=32)
-            
-        with col2:
-            epochs = st.number_input("Epochs", min_value=1, value=10)
-            dropout_rate = st.number_input("Dropout rate", 
-                                         min_value=0.0, max_value=1.0, value=0.2)
-            weight_decay = st.number_input("Weight decay", 
-                                         value=0.0, format="%.6f")
-        
-        num_layers = st.slider("Number of hidden layers", 1, 5, 2)
-        hidden_dims = []
-        
-        for i in range(num_layers):
-            dim = st.number_input(f"Hidden layer {i+1} dimension", 
-                                min_value=1, 
-                                value=max(input_dim, output_dim))
-            hidden_dims.append(dim)
-            
-        if st.button("Create and Train Model"):
-            model = ModelFactory.get_custom_mlp(input_dim, hidden_dims, output_dim)
-            st.write("Model architecture:")
-            st.code(str(model))
-            
-            trained_model = train_pytorch_model(model, data, target_column, 
-                                             epochs=epochs, 
-                                             batch_size=batch_size, 
-                                             learning_rate=learning_rate)
+            study_duration = st.number_input("Study duration (minutes)", 
+                                           min_value=1, value=10)
+
+            def objective(trial):
+                # Hyperparameter search space using user-defined ranges
+                lr = trial.suggest_float('lr', lr_min, lr_max, log=True)
+                batch_size = trial.suggest_categorical('batch_size', batch_size_list)
+                n_layers = trial.suggest_int('n_layers', min_layers, max_layers)
+                dropout = trial.suggest_float('dropout', dropout_min, dropout_max)
+                optimizer_name = trial.suggest_categorical('optimizer', optimizers)
+                
+                hidden_dims = []
+                for i in range(n_layers):
+                    hidden_dims.append(
+                        trial.suggest_int(f'hidden_dim_{i}', 
+                                        hidden_dim_min, 
+                                        hidden_dim_max)
+                    )
+                
+                model = ModelFactory.get_custom_mlp(input_dim, hidden_dims, 
+                                                  output_dim, dropout)
+                
+                try:
+                    final_loss = train_pytorch_model(
+                        model, data, target_column,
+                        epochs=epochs,
+                        batch_size=batch_size,
+                        learning_rate=lr,
+                        optimizer_name=optimizer_name,
+                        criterion=loss_functions[loss_function],
+                        return_best_loss=True
+                    )
+                    return final_loss  # Negative because Optuna minimizes
+                except Exception as e:
+                    return float('inf')
+
+            if st.button("Start Optimization"):
+                study = optuna.create_study(direction="minimize")
+                with st.spinner('Optimizing hyperparameters...'):
+                    study.optimize(objective, n_trials=n_trials, 
+                                 timeout=60*study_duration)
+                
+                st.write("### Best Parameters Found:")
+                st.write(study.best_params)
+                
+                # Use best parameters
+                best_params = study.best_params
+                hidden_dims = [best_params[f'hidden_dim_{i}'] 
+                             for i in range(best_params['n_layers'])]
+                model = ModelFactory.get_custom_mlp(input_dim, hidden_dims, 
+                                                  output_dim, best_params['dropout'])
+                
+                trained_model = train_pytorch_model(
+                    model, data, target_column,
+                    epochs=epochs,
+                    batch_size=best_params['batch_size'],
+                    learning_rate=best_params['lr'],
+                    optimizer_name=best_params['optimizer'],
+                    criterion=loss_functions[loss_function]
+                )
 
     else:  # Image
         available_models = ModelFactory.get_available_image_models()
