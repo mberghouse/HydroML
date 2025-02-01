@@ -117,9 +117,9 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 If you use HydroML in your research, please cite:
 ```bibtex
 @software{hydroml2024,
-  author = {Your Name},
+  author = {Marc Berghouse},
   title = {HydroML: Machine Learning for Hydrological Data},
   year = {2024},
-  url = {https://github.com/yourusername/HydroML}
+  url = {https://github.com/mberghouse/HydroML}
 }
 ```
